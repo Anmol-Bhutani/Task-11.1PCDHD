@@ -1,0 +1,239 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2818
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 import requests\
+import customtkinter as ctk\
+import time\
+import threading\
+import serial\
+\
+class SmartKitchenGUI(ctk.CTk):\
+    def __init__(self):\
+        super().__init__()\
+\
+        self.title("Smart Kitchen Monitoring")\
+        self.geometry("900x600")\
+\
+        # Set the default appearance mode to Dark\
+        ctk.set_appearance_mode("dark")\
+\
+        # Set up grid layout for the main window\
+        self.grid_rowconfigure(0, weight=1)\
+        self.grid_columnconfigure(1, weight=1)\
+\
+        # Set up navigation frame\
+        self.navigation_frame = ctk.CTkFrame(self, corner_radius=0)\
+        self.navigation_frame.grid(row=0, column=0, sticky="nsew")\
+        self.navigation_frame.grid_rowconfigure(5, weight=1)\
+\
+        self.navigation_label = ctk.CTkLabel(self.navigation_frame, text="Smart Kitchen", font=ctk.CTkFont(size=20, weight="bold"))\
+        self.navigation_label.grid(row=0, column=0, padx=20, pady=20)\
+\
+        # Navigation buttons\
+        self.home_button = ctk.CTkButton(self.navigation_frame, text="Home", anchor="w", command=self.home_button_event, height=40, border_spacing=10, fg_color="transparent")\
+        self.home_button.grid(row=1, column=0, sticky="ew", padx=20, pady=10)\
+\
+        self.sensor_button = ctk.CTkButton(self.navigation_frame, text="Sensors", anchor="w", command=self.sensor_button_event, height=40, border_spacing=10, fg_color="transparent")\
+        self.sensor_button.grid(row=2, column=0, sticky="ew", padx=20, pady=10)\
+\
+        self.notifications_button = ctk.CTkButton(self.navigation_frame, text="Notifications", anchor="w", command=self.notifications_button_event, height=40, border_spacing=10, fg_color="transparent")\
+        self.notifications_button.grid(row=3, column=0, sticky="ew", padx=20, pady=10)\
+\
+        # Appearance mode menu (only Dark theme now)\
+        self.appearance_mode_menu = ctk.CTkOptionMenu(self.navigation_frame, values=["Dark"], command=self.change_appearance_mode_event)\
+        self.appearance_mode_menu.grid(row=4, column=0, padx=20, pady=20, sticky="s")\
+\
+        # Create frames for content\
+        self.home_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")\
+        self.home_frame.grid_columnconfigure(0, weight=1)\
+        self.sensor_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")\
+        self.notifications_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")\
+\
+        # Create Home frame content\
+        self.home_label = ctk.CTkLabel(self.home_frame, text="Welcome to Smart Kitchen", font=ctk.CTkFont(size=20, weight="bold"))\
+        self.home_label.grid(row=0, column=0, padx=20, pady=10)\
+        self.home_description = ctk.CTkLabel(self.home_frame, text="Monitor sensors and control the kitchen environment with ease.", font=ctk.CTkFont(size=16))\
+        self.home_description.grid(row=1, column=0, padx=20, pady=10)\
+\
+        # Add sensor and action buttons to the home page\
+        self.monitor_sensors_button = ctk.CTkButton(self.home_frame, text="Monitor Sensors", command=self.sensor_button_event, width=200)\
+        self.monitor_sensors_button.grid(row=2, column=0, padx=20, pady=10)\
+\
+        self.notifications_button_on_home = ctk.CTkButton(self.home_frame, text="Check Notifications", command=self.notifications_button_event, width=200)\
+        self.notifications_button_on_home.grid(row=3, column=0, padx=20, pady=10)\
+\
+        # Create Sensors frame content\
+        self.sensor_label = ctk.CTkLabel(self.sensor_frame, text="Sensor Readings", font=ctk.CTkFont(size=20, weight="bold"))\
+        self.sensor_label.grid(row=0, column=0, padx=20, pady=10)\
+\
+        # Displaying data for each sensor\
+        self.weight_data_label = ctk.CTkLabel(self.sensor_frame, text="Cylinder Weight: 0kg", font=ctk.CTkFont(size=16))\
+        self.weight_data_label.grid(row=1, column=0, padx=20, pady=10)\
+\
+        self.lpg_data_label = ctk.CTkLabel(self.sensor_frame, text="LPG Leak Status: Safe", font=ctk.CTkFont(size=16))\
+        self.lpg_data_label.grid(row=2, column=0, padx=20, pady=10)\
+\
+        self.temp_humidity_data_label = ctk.CTkLabel(self.sensor_frame, text="Temperature: 25\'c2\'b0C | Humidity: 50%", font=ctk.CTkFont(size=16))\
+        self.temp_humidity_data_label.grid(row=3, column=0, padx=20, pady=10)\
+\
+        # Create Notifications frame content\
+        self.notifications_label = ctk.CTkLabel(self.notifications_frame, text="Notifications", font=ctk.CTkFont(size=20, weight="bold"))\
+        self.notifications_label.grid(row=0, column=0, padx=20, pady=10)\
+\
+        self.notifications_text = ctk.CTkTextbox(self.notifications_frame, width=400, height=200, font=ctk.CTkFont(size=14), fg_color="lightgray", text_color="black")\
+        self.notifications_text.grid(row=1, column=0, padx=20, pady=10)\
+\
+        # Test notification button\
+        self.test_button = ctk.CTkButton(self.notifications_frame, text="Send Test Notification", command=self.test_notification, width=200)\
+        self.test_button.grid(row=2, column=0, padx=20, pady=10)\
+\
+        # Default frame selection\
+        self.select_frame_by_name("home")\
+\
+        # Serial communication with Arduino\
+        self.ser = serial.Serial('/dev/ttyACM1', 9600, timeout=1)  # Change this based on your system\
+        self.ser.flush()\
+\
+        # Start the background thread for reading sensor data from Arduino\
+        self.sensor_thread = threading.Thread(target=self.read_sensor_data, daemon=True)\
+        self.sensor_thread.start()\
+\
+    def read_sensor_data(self):\
+        while True:\
+            # Read data from Arduino\
+            if self.ser.in_waiting > 0:\
+                try:\
+                    line = self.ser.readline().decode('utf-8').strip()\
+                    # Parse the incoming data - now matching Arduino's output format\
+                    if "Weight:" in line and "Gas:" in line:\
+                        parts = line.split(" | ")\
+                        # Extract values using the correct order from Arduino output\
+                        weight = parts[0].split(":")[1].strip().split()[0]  # Remove 'kg'\
+                        gas_status = parts[1].split(":")[1].strip()\
+                        temperature = parts[2].split(":")[1].strip().split()[0]  # Remove '\'c2\'b0C'\
+                        humidity = parts[3].split(":")[1].strip().split()[0]  # Remove '%'\
+\
+                        # Update the GUI with the new sensor data (thread-safe)\
+                        self.after(0, self.update_gui, weight, gas_status, temperature, humidity)\
+\
+                        # Notifications section\
+                        try:\
+                            temp_float = float(temperature)\
+                            humidity_float = float(humidity)\
+\
+                            if gas_status == "Leak Detected":\
+                                notification_message = "Warning: Gas Leak Detected!"\
+                                email_subject = "Critical Alert: Gas Leak Detected"\
+                                email_body = self.create_email_body(gas_status, temperature, humidity, weight)\
+                                self.send_email(email_subject, email_body)\
+                            elif temp_float > 30.0 or humidity_float > 70.0:\
+                                notification_message = "Warning: High Temperature/Humidity!"\
+                              \
+                            else:\
+                                notification_message = "Everything is Good: No Gas Leak, Normal Temperature, and Humidity."\
+\
+                            self.after(0, self.update_notification, notification_message)\
+\
+                        except ValueError as e:\
+                            print(f"Error converting temperature/humidity values: \{e\}")\
+\
+                except Exception as e:\
+                    print(f"Error processing sensor data: \{e\}")\
+\
+    def update_gui(self, weight, gas_status, temperature, humidity):\
+        """Update GUI elements safely."""\
+        self.weight_data_label.configure(text=f"Cylinder Weight: 0 kg")\
+        self.lpg_data_label.configure(text=f"LPG Leak Status: \{gas_status\}")\
+        self.temp_humidity_data_label.configure(text=f"Temperature: \{temperature\}\'c2\'b0C | Humidity: \{humidity\}%")\
+\
+    def update_notification(self, message):\
+        """Update notifications text box."""\
+        self.notifications_text.delete(1.0, "end")\
+        self.notifications_text.insert("end", message)\
+        self.notifications_text.yview("end")\
+\
+    def send_email(self, subject, body):\
+        url = "https://mail-sender-api1.p.rapidapi.com/"\
+        print(body)\
+        # Prepare the email content\
+        payload = \{\
+            "sendto": "anmol4762.be23@chitkara.edu.in",  # Replace with recipient's email\
+            "name": "Smart",  # Sender's name or system name\
+            "replyTo": "admin@go-mail.us.to",  # Your reply-to email\
+            "ishtml": "false",  # Set to 'true' for HTML content\
+            "title": subject , # Email subject\
+            "body": body  # Email body content\
+        \}\
+\
+        headers = \{\
+            "x-rapidapi-key": "b4f4677706msh320410cfcde7211p1fc339jsn0a4f25d10a79",  # Replace with your API key\
+            "x-rapidapi-host": "mail-sender-api1.p.rapidapi.com",\
+            "Content-Type": "application/json"\
+        \}\
+\
+        # Send the POST request to the API\
+        response = requests.post(url, json=payload, headers=headers)\
+\
+        # Print response for debugging\
+        print(response)\
+        return response\
+\
+    def create_email_body(self, gas_status, temperature, humidity, weight):\
+        """Format the email body with sensor readings in plain text."""\
+        return f"""\
+        Smart Kitchen System Alert\
+\
+        Gas Status: \{gas_status\}\
+        Temperature: \{temperature\} C\
+        Humidity: \{humidity\}%\
+        Cylinder Weight: \{weight\} kg\
+\
+        Status: Please check the system for further action.\
+        """\
+\
+\
+    def test_notification(self):\
+        weight = self.weight_data_label.cget("text").split(":")[1].strip().split()[0]  # Extract weight value\
+        gas_status = self.lpg_data_label.cget("text").split(":")[1].strip()  # Extract gas status\
+        temperature = self.temp_humidity_data_label.cget("text").split(":")[1].strip().split("|")[0].strip()  # Extract temperature\
+        humidity = self.temp_humidity_data_label.cget("text").split(":")[2].strip()  # Extract humidity\
+\
+        body = self.create_email_body(gas_status, temperature, humidity, weight)\
+        \
+        subject = "Test Notification from Smart Kitchen"\
+        self.send_email(subject, body)\
+\
+    def select_frame_by_name(self, frame_name):\
+        """Helper function to select which frame to display."""\
+        frames = [self.home_frame, self.sensor_frame, self.notifications_frame]\
+        for frame in frames:\
+            frame.grid_forget()\
+\
+        if frame_name == "home":\
+            self.home_frame.grid(row=0, column=1, sticky="nsew")\
+        elif frame_name == "sensor":\
+            self.sensor_frame.grid(row=0, column=1, sticky="nsew")\
+        elif frame_name == "notifications":\
+            self.notifications_frame.grid(row=0, column=1, sticky="nsew")\
+\
+    def home_button_event(self):\
+        self.select_frame_by_name("home")\
+\
+    def sensor_button_event(self):\
+        self.select_frame_by_name("sensor")\
+\
+    def notifications_button_event(self):\
+        self.select_frame_by_name("notifications")\
+\
+    def change_appearance_mode_event(self, choice):\
+        ctk.set_appearance_mode(choice)\
+\
+\
+# Start the GUI application\
+if __name__ == "__main__":\
+    app = SmartKitchenGUI()\
+    app.mainloop()}
